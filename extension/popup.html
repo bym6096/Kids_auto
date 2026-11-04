@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; width: 230px; margin: 0; padding: 12px; color: #222; }
+  label { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  input { width: 18px; height: 18px; }
+  #state { margin: 6px 0 10px 26px; font-size: 12px; color: #666; }
+  a { font-size: 13px; color: #0b57d0; cursor: pointer; text-decoration: none; }
+</style>
+</head>
+<body>
+<label><input type="checkbox" id="enabled"> 자동 로그인 사용</label>
+<div id="state"></div>
+<a id="open">상세 설정 열기</a>
+<script src="popup.js"></script>
+</body>
+</html>

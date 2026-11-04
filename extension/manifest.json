@@ -15,7 +15,8 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "YouTube Kids 자동 로그인 설정"
+    "default_title": "YouTube Kids 자동 로그인",
+    "default_popup": "popup.html"
   },
   "options_ui": {
     "page": "options.html",
