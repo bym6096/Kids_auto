@@ -17,6 +17,8 @@
     parent: /^(보호자입니다|i['’]?m a parent|i am a parent)$/i,
     supervised: /감독 대상|supervised/i,
     next: /^(다음|next)$/i,
+    signin: /^(로그인|sign in)$/i,
+    parentSigninHeading: /보호자 계정으로 로그인|sign in (with|to) your parent/i,
     consent: /^(계속|continue|허용|allow|확인|confirm)$/i,
     profileHeading: /누가 시청|who['’]?s watching/i,
   };
@@ -158,6 +160,17 @@
         }
         if (!cooldown('ytk-signin-info', 8000) || !(await budget('ytk-signin-info', 4, 600000))) return false;
         await log('로그인 안내 화면: 다음 클릭');
+        click(b);
+        return true;
+      },
+    },
+    {
+      name: 'ytk-parent-signin', // "보호자 계정으로 로그인하세요" 화면 (계정 카드 + 뒤로/건너뛰기/로그인)
+      async run() {
+        if (!RE.parentSigninHeading.test(document.body.innerText || '')) return false;
+        const b = findButton(RE.signin);
+        if (!b || !cooldown('ytk-parent-signin', 30000) || !(await budget('ytk-parent-signin', 4, 600000))) return false;
+        await log("'보호자 계정으로 로그인' 화면: 로그인 클릭");
         click(b);
         return true;
       },
