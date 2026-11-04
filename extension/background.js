@@ -32,3 +32,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.runtime.onInstalled.addListener(updateBadge);
 chrome.runtime.onStartup.addListener(updateBadge);
 updateBadge();
+
+// 이전 버전이 저장했을 수 있는 구글 이메일/비밀번호를 삭제한다 (더 이상 사용하지 않음).
+chrome.storage.local.remove(['email', 'password']);

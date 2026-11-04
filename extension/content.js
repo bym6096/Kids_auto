@@ -1,19 +1,15 @@
 // YouTube Kids 자동 로그인 content script
-// - www.youtubekids.com : 로그아웃 화면(보호자입니다 → 로그인 …)을 따라가며 클릭
-// - accounts.google.com : 계정 선택 / 이메일 / 비밀번호 / 동의 화면 처리
+// www.youtubekids.com 의 로그아웃 화면(보호자입니다 → … → 로그인)을 따라가며 클릭한다.
 (() => {
   'use strict';
   if (window.top !== window) return;
-  const HOST = location.hostname;
-  const IS_YTK = HOST === 'www.youtubekids.com';
-  const IS_GOOGLE = HOST === 'accounts.google.com';
-  if (!IS_YTK && !IS_GOOGLE) return;
+  if (location.hostname !== 'www.youtubekids.com') return;
 
   const FAST_MS = 250;   // 로그인 진행 중
   const IDLE_MS = 2000;  // 평소(이미 로그인된 화면 감시)
   const FAST_WINDOW_MS = 45000;
   let fastUntil = Date.now() + FAST_WINDOW_MS; // 페이지 로드 직후엔 빠르게
-  const DEFAULTS = { enabled: true, mode: 'supervised', email: '', password: '', birthYear: '', profile: '' };
+  const DEFAULTS = { enabled: true, mode: 'supervised', birthYear: '', profile: '' };
 
   // ---- 문구 패턴 (한국어/영어) ------------------------------------------------
   const RE = {
@@ -24,7 +20,6 @@
     ok: /^(확인|ok|got it)$/i,
     tourHeading: /보호자 기능 둘러보기|parent (features|tour)/i,
     parentSigninHeading: /보호자 계정으로 로그인|sign in (with|to) your parent/i,
-    consent: /^(계속|continue|허용|allow|확인|confirm)$/i,
     profileHeading: /누가 시청|who['’]?s watching/i,
   };
 
@@ -36,7 +31,7 @@
       const d = new Date();
       const t = d.toTimeString().slice(0, 8);
       const { log: cur = [] } = await chrome.storage.local.get('log');
-      cur.push(`[${d.getMonth() + 1}/${d.getDate()} ${t}] (${IS_YTK ? 'kids' : 'google'}) ${msg}`);
+      cur.push(`[${d.getMonth() + 1}/${d.getDate()} ${t}] ${msg}`);
       await chrome.storage.local.set({ log: cur.slice(-80) });
     } catch (_) { /* 확장 재로드 등 */ }
   }
@@ -225,88 +220,6 @@
     },
   ];
 
-  // ---- Google 로그인 팝업 ----------------------------------------------------
-  const GOOGLE_STEPS = [
-    {
-      name: 'g-manual', // 2단계 인증/캡차 등은 자동화하지 않는다
-      async run() {
-        const p = location.pathname;
-        if (/challenge/.test(p) && !/challenge\/pwd/.test(p)) {
-          await log('추가 인증(2단계/본인확인) 화면입니다. 직접 진행해 주세요', { once: true });
-          return true; // 이후 단계 중단
-        }
-        if (/rejected|captcha/.test(p)) {
-          await log('구글이 로그인을 거부했거나 캡차를 요구합니다. 직접 진행해 주세요', { once: true });
-          return true;
-        }
-        return false;
-      },
-    },
-    {
-      name: 'g-chooser', // 계정 선택
-      async run(cfg) {
-        const items = deepAll((el) => el.hasAttribute('data-identifier') && isVisible(el));
-        if (!items.length) return false;
-        const want = cfg.email.toLowerCase();
-        const pick = (want && items.find((el) => (el.getAttribute('data-identifier') || '').toLowerCase() === want))
-          || (!want ? items[0] : null);
-        if (!pick) {
-          await log('계정 선택 화면에 설정한 이메일이 없습니다. 직접 선택해 주세요', { once: true });
-          return false;
-        }
-        if (!cooldown('g-chooser', 2000) || !(await budget('g-chooser', 4, 600000))) return false;
-        await log('계정 선택 클릭');
-        click(pick);
-        return true;
-      },
-    },
-    {
-      name: 'g-password',
-      async run(cfg) {
-        const input = findVisible('input[type="password"]');
-        if (!input) return false;
-        if (!input.value && cfg.password) setValue(input, cfg.password);
-        if (!input.value) {
-          await log('비밀번호 입력 화면: 저장된 비밀번호가 없고 자동 채우기도 없어 직접 입력을 기다립니다', { once: true });
-          return false;
-        }
-        const next = findVisible('#passwordNext button') || findVisible('#passwordNext') || findButton(RE.next);
-        if (!next || !cooldown('g-password', 15000) || !(await budget('g-password', 2, 1800000))) return false;
-        await log('비밀번호 제출');
-        click(next);
-        return true;
-      },
-    },
-    {
-      name: 'g-identifier', // 이메일 입력
-      async run(cfg) {
-        const input = findVisible('input#identifierId, input[type="email"]');
-        if (!input) return false;
-        if (!input.value && cfg.email) setValue(input, cfg.email);
-        if (!input.value) {
-          await log('이메일 입력 화면: 설정에 이메일이 없어 직접 입력을 기다립니다', { once: true });
-          return false;
-        }
-        const next = findVisible('#identifierNext button') || findVisible('#identifierNext') || findButton(RE.next);
-        if (!next || !cooldown('g-identifier', 4000) || !(await budget('g-identifier', 3, 600000))) return false;
-        await log('이메일 제출');
-        click(next);
-        return true;
-      },
-    },
-    {
-      name: 'g-consent', // "YouTube Kids에 계속" 등 동의 화면
-      async run() {
-        if (!/consent|speedbump|oauth/.test(location.pathname + location.search)) return false;
-        const b = findButton(RE.consent);
-        if (!b || !cooldown('g-consent', 3000) || !(await budget('g-consent', 4, 600000))) return false;
-        await log('동의 화면: 계속 클릭');
-        click(b);
-        return true;
-      },
-    },
-  ];
-
   // ---- 메인 루프 ----------------------------------------------------------------
   let running = false;
   async function tick() {
@@ -315,7 +228,7 @@
     try {
       const cfg = { ...DEFAULTS, ...(await chrome.storage.local.get(Object.keys(DEFAULTS))) };
       if (!cfg.enabled) return;
-      for (const step of IS_YTK ? YTK_STEPS : GOOGLE_STEPS) {
+      for (const step of YTK_STEPS) {
         if (await step.run(cfg)) { // 한 tick 에 한 동작만
           fastUntil = Date.now() + FAST_WINDOW_MS;
           break;

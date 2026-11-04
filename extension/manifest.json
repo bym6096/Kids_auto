@@ -8,8 +8,7 @@
     "contentSettings"
   ],
   "host_permissions": [
-    "https://www.youtubekids.com/*",
-    "https://accounts.google.com/*"
+    "https://www.youtubekids.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -25,8 +24,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtubekids.com/*",
-        "https://accounts.google.com/*"
+        "https://www.youtubekids.com/*"
       ],
       "js": [
         "content.js"

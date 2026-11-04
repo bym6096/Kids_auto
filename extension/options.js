@@ -1,5 +1,5 @@
-const FIELDS = ['email', 'password', 'birthYear', 'profile', 'mode'];
-const DEFAULTS = { enabled: true, mode: 'supervised', email: '', password: '', birthYear: '', profile: '' };
+const FIELDS = ['birthYear', 'profile', 'mode'];
+const DEFAULTS = { enabled: true, mode: 'supervised', birthYear: '', profile: '' };
 const $ = (id) => document.getElementById(id);
 
 async function load() {
