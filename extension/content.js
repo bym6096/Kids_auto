@@ -9,7 +9,10 @@
   const IS_GOOGLE = HOST === 'accounts.google.com';
   if (!IS_YTK && !IS_GOOGLE) return;
 
-  const TICK_MS = 2000;
+  const FAST_MS = 250;   // 로그인 진행 중
+  const IDLE_MS = 2000;  // 평소(이미 로그인된 화면 감시)
+  const FAST_WINDOW_MS = 45000;
+  let fastUntil = Date.now() + FAST_WINDOW_MS; // 페이지 로드 직후엔 빠르게
   const DEFAULTS = { enabled: true, mode: 'supervised', email: '', password: '', birthYear: '', profile: '' };
 
   // ---- 문구 패턴 (한국어/영어) ------------------------------------------------
@@ -18,6 +21,8 @@
     supervised: /감독 대상|supervised/i,
     next: /^(다음|next)$/i,
     signin: /^(로그인|sign in)$/i,
+    ok: /^(확인|ok|got it)$/i,
+    tourHeading: /보호자 기능 둘러보기|parent (features|tour)/i,
     parentSigninHeading: /보호자 계정으로 로그인|sign in (with|to) your parent/i,
     consent: /^(계속|continue|허용|allow|확인|confirm)$/i,
     profileHeading: /누가 시청|who['’]?s watching/i,
@@ -108,7 +113,7 @@
       name: 'ytk-parent', // "어린이입니다 / 보호자입니다"
       async run() {
         const b = findButton(RE.parent);
-        if (!b || !cooldown('ytk-parent', 8000) || !(await budget('ytk-parent', 5, 600000))) return false;
+        if (!b || !cooldown('ytk-parent', 1500) || !(await budget('ytk-parent', 5, 600000))) return false;
         await log("'보호자입니다' 클릭");
         click(b);
         return true;
@@ -120,7 +125,7 @@
         const page = findVisible('ytk-kids-onboarding-welcome-page-renderer');
         if (!page) return false;
         const b = findButton(cfg.mode === 'parent' ? RE.next : RE.supervised, page);
-        if (!b || !cooldown('ytk-welcome', 8000) || !(await budget('ytk-welcome', 5, 600000))) return false;
+        if (!b || !cooldown('ytk-welcome', 1500) || !(await budget('ytk-welcome', 5, 600000))) return false;
         await log(cfg.mode === 'parent' ? "환영 화면: '다음' 클릭" : '환영 화면: 감독 대상 계정 로그인 클릭');
         click(b);
         return true;
@@ -143,7 +148,7 @@
           return true; // 다음 tick 에 제출
         }
         const submit = findButton(/^(제출|submit)$/i, page);
-        if (!submit || !cooldown('ytk-agegate', 8000) || !(await budget('ytk-agegate', 4, 600000))) return false;
+        if (!submit || !cooldown('ytk-agegate', 1500) || !(await budget('ytk-agegate', 4, 600000))) return false;
         await log('생년 입력 후 제출');
         click(submit);
         return true;
@@ -155,9 +160,20 @@
         const next = findVisible('#sign-in-info-next-button');
         if (!next) return false;
         const btn = isEnabled(next) ? next : findVisible('#show-text-link');
-        if (!btn || !cooldown('ytk-signin-info', 6000) || !(await budget('ytk-signin-info', 5, 600000))) return false;
+        if (!btn || !cooldown('ytk-signin-info', 1500) || !(await budget('ytk-signin-info', 5, 600000))) return false;
         await log(isEnabled(next) ? '로그인 안내 화면: 다음 클릭' : "로그인 안내 영상: '텍스트 표시' 클릭");
         click(btn);
+        return true;
+      },
+    },
+    {
+      name: 'ytk-tour', // "보호자 기능 둘러보기" 안내 -> 확인 (옆 화살표(>)는 누르지 않는다)
+      async run() {
+        if (!RE.tourHeading.test(document.body.innerText || '')) return false;
+        const b = findButton(RE.ok);
+        if (!b || !cooldown('ytk-tour', 2000) || !(await budget('ytk-tour', 4, 600000))) return false;
+        await log("'보호자 기능 둘러보기': 확인 클릭");
+        click(b);
         return true;
       },
     },
@@ -178,7 +194,7 @@
         if (!RE.parentSigninHeading.test(document.body.innerText || '')) return false;
         if (findButton(RE.signin)) return false; // 로그인 버튼이 있는 화면이면 해당 단계가 처리
         const b = findVisible('#next-button');
-        if (!b || !isEnabled(b) || !cooldown('ytk-signin-info-text', 6000) || !(await budget('ytk-signin-info-text', 4, 600000))) return false;
+        if (!b || !isEnabled(b) || !cooldown('ytk-signin-info-text', 1500) || !(await budget('ytk-signin-info-text', 4, 600000))) return false;
         await log('텍스트 안내 화면: 다음 클릭');
         click(b);
         return true;
@@ -201,7 +217,7 @@
         if (!RE.profileHeading.test(document.body.innerText || '')) return false;
         const target = deepAll((el) => (CLICKABLE.has(el.tagName) || el.getAttribute('role') === 'button')
           && labelOf(el).includes(cfg.profile) && isVisible(el))[0];
-        if (!target || !cooldown('ytk-profile', 15000) || !(await budget('ytk-profile', 4, 600000))) return false;
+        if (!target || !cooldown('ytk-profile', 3000) || !(await budget('ytk-profile', 4, 600000))) return false;
         await log('프로필 선택 클릭');
         click(target);
         return true;
@@ -238,7 +254,7 @@
           await log('계정 선택 화면에 설정한 이메일이 없습니다. 직접 선택해 주세요', { once: true });
           return false;
         }
-        if (!cooldown('g-chooser', 8000) || !(await budget('g-chooser', 4, 600000))) return false;
+        if (!cooldown('g-chooser', 2000) || !(await budget('g-chooser', 4, 600000))) return false;
         await log('계정 선택 클릭');
         click(pick);
         return true;
@@ -272,7 +288,7 @@
           return false;
         }
         const next = findVisible('#identifierNext button') || findVisible('#identifierNext') || findButton(RE.next);
-        if (!next || !cooldown('g-identifier', 12000) || !(await budget('g-identifier', 3, 600000))) return false;
+        if (!next || !cooldown('g-identifier', 4000) || !(await budget('g-identifier', 3, 600000))) return false;
         await log('이메일 제출');
         click(next);
         return true;
@@ -283,7 +299,7 @@
       async run() {
         if (!/consent|speedbump|oauth/.test(location.pathname + location.search)) return false;
         const b = findButton(RE.consent);
-        if (!b || !cooldown('g-consent', 10000) || !(await budget('g-consent', 4, 600000))) return false;
+        if (!b || !cooldown('g-consent', 3000) || !(await budget('g-consent', 4, 600000))) return false;
         await log('동의 화면: 계속 클릭');
         click(b);
         return true;
@@ -300,7 +316,10 @@
       const cfg = { ...DEFAULTS, ...(await chrome.storage.local.get(Object.keys(DEFAULTS))) };
       if (!cfg.enabled) return;
       for (const step of IS_YTK ? YTK_STEPS : GOOGLE_STEPS) {
-        if (await step.run(cfg)) break; // 한 tick 에 한 동작만
+        if (await step.run(cfg)) { // 한 tick 에 한 동작만
+          fastUntil = Date.now() + FAST_WINDOW_MS;
+          break;
+        }
       }
     } catch (e) {
       if (!/context invalidated/i.test(String(e))) await log(`오류: ${e && e.message}`);
@@ -308,6 +327,7 @@
       running = false;
     }
   }
-  setInterval(tick, TICK_MS);
-  tick();
+  (function loop() {
+    tick().finally(() => setTimeout(loop, Date.now() < fastUntil ? FAST_MS : IDLE_MS));
+  })();
 })();
