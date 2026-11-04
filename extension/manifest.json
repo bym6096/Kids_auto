@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Kids 자동 로그인",
+  "version": "0.1.0",
+  "description": "YouTube Kids가 로그아웃되면 저장된 설정으로 자동으로 다시 로그인합니다.",
+  "permissions": [
+    "storage",
+    "contentSettings"
+  ],
+  "host_permissions": [
+    "https://www.youtubekids.com/*",
+    "https://accounts.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "YouTube Kids 자동 로그인 설정"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtubekids.com/*",
+        "https://accounts.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
