@@ -150,17 +150,14 @@
       },
     },
     {
-      name: 'ytk-signin-info', // 소개 영상 화면의 '다음'
+      name: 'ytk-signin-info', // 안내 영상 화면: 영상 '다음'은 비활성이므로 '텍스트 표시'로 넘어간다
       async run() {
-        const b = findVisible('#sign-in-info-next-button');
-        if (!b) return false;
-        if (!isEnabled(b)) { // 안내 영상 재생이 끝나야 활성화된다 - 건너뛰지 않고 기다린다
-          await log('로그인 안내 영상이 끝나 다음 버튼이 활성화되기를 기다립니다', { once: true });
-          return false;
-        }
-        if (!cooldown('ytk-signin-info', 8000) || !(await budget('ytk-signin-info', 4, 600000))) return false;
-        await log('로그인 안내 화면: 다음 클릭');
-        click(b);
+        const next = findVisible('#sign-in-info-next-button');
+        if (!next) return false;
+        const btn = isEnabled(next) ? next : findVisible('#show-text-link');
+        if (!btn || !cooldown('ytk-signin-info', 6000) || !(await budget('ytk-signin-info', 5, 600000))) return false;
+        await log(isEnabled(next) ? '로그인 안내 화면: 다음 클릭' : "로그인 안내 영상: '텍스트 표시' 클릭");
+        click(btn);
         return true;
       },
     },
@@ -169,8 +166,20 @@
       async run() {
         if (!RE.parentSigninHeading.test(document.body.innerText || '')) return false;
         const b = findButton(RE.signin);
-        if (!b || !cooldown('ytk-parent-signin', 30000) || !(await budget('ytk-parent-signin', 4, 600000))) return false;
+        if (!b || !cooldown('ytk-signin', 30000) || !(await budget('ytk-signin', 4, 600000))) return false;
         await log("'보호자 계정으로 로그인' 화면: 로그인 클릭");
+        click(b);
+        return true;
+      },
+    },
+    {
+      name: 'ytk-signin-info-text', // '텍스트 표시' 이후 화면의 활성화된 '다음'
+      async run() {
+        if (!RE.parentSigninHeading.test(document.body.innerText || '')) return false;
+        if (findButton(RE.signin)) return false; // 로그인 버튼이 있는 화면이면 해당 단계가 처리
+        const b = findVisible('#next-button');
+        if (!b || !isEnabled(b) || !cooldown('ytk-signin-info-text', 6000) || !(await budget('ytk-signin-info-text', 4, 600000))) return false;
+        await log('텍스트 안내 화면: 다음 클릭');
         click(b);
         return true;
       },
